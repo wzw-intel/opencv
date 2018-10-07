@@ -14,6 +14,7 @@ endif()
 
 set(HAVE_VULKAN 1)
 add_definitions(-DVK_NO_PROTOTYPES)
+include_directories(${VULKAN_INCLUDE_DIRS})
 
 
 #if(NOT HAVE_VULKAN)
