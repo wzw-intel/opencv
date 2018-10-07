@@ -13,6 +13,7 @@
 #include "../include/op_lrn.hpp"
 #include "../include/op_concat.hpp"
 #include "../include/op_softmax.hpp"
+#include "../vulkan/runtime/vk_loader.hpp"
 
 namespace cv { namespace dnn { namespace vkcom {
 
@@ -27,9 +28,6 @@ std::vector<const char *> kEnabledLayers;
 typedef std::map<std::thread::id, Context*> IdToContextMap;
 IdToContextMap kThreadResources;
 static std::map<std::string, std::vector<uint32_t>> kShaders;
-std::mutex kThreadResourcesMtx;
-static std::mutex kShaderMtx;
-static std::mutex kGlobalObjMtx;
 static int init_count = 0;
 static bool init();
 static void release();
@@ -48,22 +46,21 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugReportCallbackFn(
 
 static void setContext(Context* ctx)
 {
-    kThreadResourcesMtx.lock();
+    cv::AutoLock lock(cv::getInitializationMutex());
     std::thread::id tid = std::this_thread::get_id();
     if (kThreadResources.find(tid) != kThreadResources.end())
     {
         CV_LOG_WARNING(NULL, format("already bind a context: %p", ctx));
-        kThreadResourcesMtx.unlock();
         return;
     }
     kThreadResources.insert(std::pair<std::thread::id, Context*>(tid, ctx));
-    kThreadResourcesMtx.unlock();
 }
 
 Context* getContext()
 {
     Context* ctx = NULL;
-    kThreadResourcesMtx.lock();
+
+    cv::AutoLock lock(cv::getInitializationMutex());
     std::thread::id tid = std::this_thread::get_id();
     IdToContextMap::iterator it = kThreadResources.find(tid);
     if (it != kThreadResources.end())
@@ -74,22 +71,19 @@ Context* getContext()
     {
         CV_LOG_WARNING(NULL, "no context bound.");
     }
-    kThreadResourcesMtx.unlock();
     return ctx;
 }
 
 static void removeContext()
 {
-    kThreadResourcesMtx.lock();
+    cv::AutoLock lock(cv::getInitializationMutex());
     std::thread::id tid = std::this_thread::get_id();
     IdToContextMap::iterator it = kThreadResources.find(tid);
     if (it == kThreadResources.end())
     {
-        kThreadResourcesMtx.unlock();
         return;
     }
     kThreadResources.erase(it);
-    kThreadResourcesMtx.unlock();
 }
 
 // public APIs
@@ -168,10 +162,15 @@ void deinitPerThread()
 // private functions
 static bool init()
 {
-    kGlobalObjMtx.lock();
+    cv::AutoLock lock(cv::getInitializationMutex());
 
     if (init_count == 0)
     {
+        if(!loadVulkanRuntime())
+        {
+            return false;
+        }
+
         // create VkInstance, VkPhysicalDevice
         std::vector<const char *> enabledExtensions;
         if (enableValidationLayers)
@@ -251,6 +250,7 @@ static bool init()
                 std::cout << "Could not find instance extension named \""
                           << extensions[i] << "\"!" << std::endl;
                 return false;
+                goto failed;
             }
             enabledExtensions.push_back(extensions[i]);
         }
@@ -349,17 +349,14 @@ static bool init()
     }
 
     init_count++;
-    kGlobalObjMtx.unlock();
-
     return true;
 }
 
 static void release()
 {
-    kGlobalObjMtx.lock();
+    cv::AutoLock lock(cv::getInitializationMutex());
     if (init_count == 0)
     {
-        kGlobalObjMtx.unlock();
         return;
     }
 
@@ -378,7 +375,6 @@ static void release()
         vkDestroyInstance(kInstance, NULL);
     }
 
-    kGlobalObjMtx.unlock();
     return;
 }
 
@@ -449,6 +445,11 @@ VkInstance getInstance()
 VkPhysicalDevice getPhysicalDevice()
 {
     return kPhysicalDevice;
+}
+
+bool isAvailable()
+{
+    return getContext() != NULL;
 }
 
 #endif // HAVE_VULKAN

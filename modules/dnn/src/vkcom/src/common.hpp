@@ -18,10 +18,9 @@
 #include <sstream>
 #include <algorithm>
 #include <memory>
-#ifdef HAVE_VULKAN
-#include <vulkan/vulkan.h>
-#endif
 #include "opencv2/core/utils/logger.hpp"
+#include "../vulkan/vulkan.h"
+#include "../vulkan/runtime/vk_functions.hpp"
 #include "../include/vkcom.hpp"
 #include "../shader/spv_shader.hpp"
 
