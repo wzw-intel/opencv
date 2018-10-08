@@ -8,8 +8,10 @@
 #include "../../../precomp.hpp"
 #include "../vulkan.h"
 
-#define VK_PFN(func) PFN_##func func = nullptr;
+#define VK_ENTRY(func) PFN_##func func = nullptr;
+#define VK_GLOBAL_LEVEL_FUNC(func) PFN_##func func = nullptr;
+#define VK_GLOBAL_LEVEL_FUNC_MANDATORY(func) PFN_##func func = nullptr;
+#define VK_FUNC(func) PFN_##func func = nullptr;
+#define VK_FUNC_MANDATORY(func) PFN_##func func = nullptr;
 
-#include "function_name_list.inl"
-
-#undef VK_PFN
+#include "function_list.inl"

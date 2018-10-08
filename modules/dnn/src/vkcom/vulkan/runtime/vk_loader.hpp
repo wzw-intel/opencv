@@ -10,7 +10,10 @@
 
 namespace cv { namespace dnn { namespace vkcom {
 
-bool loadVulkanRuntime();
+bool loadVulkanLibrary();
+bool loadVulkanEntry();
+bool loadVulkanGlobalFunctions();
+bool loadVulkanFunctions(VkInstance& instance);
 
 }}} // namespace cv::dnn::vkcom
 #endif // OPENCV_DNN_VKCOM_VULKAN_RUNTIME_VK_LOADER_HPP

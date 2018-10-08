@@ -11,11 +11,13 @@
 #include "../../../precomp.hpp"
 #include "../vulkan.h"
 
-#define VK_PFN(func) extern PFN_##func func;
+#define VK_ENTRY(func) extern PFN_##func func;
+#define VK_GLOBAL_LEVEL_FUNC(func) extern PFN_##func func;
+#define VK_GLOBAL_LEVEL_FUNC_MANDATORY(func) extern PFN_##func func;
+#define VK_FUNC(func) extern PFN_##func func;
+#define VK_FUNC_MANDATORY(func) extern PFN_##func func;
 
-#include "function_name_list.inl"
-
-#undef VK_PFN
+#include "function_list.inl"
 
 #endif // OPENCV_DNN_VKCOM_VULKAN_RUNTIME_VK_FUNCTONS_HPP
 

@@ -31,45 +31,71 @@ typedef void* VulkanHandle;
 namespace cv { namespace dnn { namespace vkcom {
 
 static VulkanHandle handle = nullptr;
-static bool loadVulkanFunctions()
+
+bool loadVulkanFunctions(VkInstance& instance)
 {
-#define VK_PFN(fun) \
-    if(!(fun = (PFN_##fun)vkGetInstanceProcAddr(nullptr, #fun))) \
+#define VK_FUNC(fun) \
+    fun = (PFN_##fun)vkGetInstanceProcAddr(instance, #fun);
+
+#define VK_FUNC_MANDATORY(fun) \
+    VK_FUNC(fun) \
+    if(!fun) \
     { \
-      fprintf(stderr, "Could not load Vulkan function: %s !", #fun); \
+      fprintf(stderr, "Could not load Vulkan function: %s !\n", #fun); \
       return false; \
     }
 
-#include "function_name_list.inl"
+#include "function_list.inl"
 
-#undef VK_PFN
     return true;
 }
 
-bool loadVulkanRuntime()
+bool loadVulkanGlobalFunctions()
 {
-    if (handle != nullptr)
-        return handle;
+#define VK_GLOBAL_LEVEL_FUNC(fun) \
+    fun = (PFN_##fun)vkGetInstanceProcAddr(nullptr, #fun);
 
-    handle = LOAD_VK_LIBRARY(DEFAULT_VK_LIBRARY_PATH);
-    if( handle == nullptr ) { 
-        fprintf(stderr, "Could not load Vulkan library: %s!\n", DEFAULT_VK_LIBRARY_PATH);
+#define VK_GLOBAL_LEVEL_FUNC_MANDATORY(fun) \
+    VK_GLOBAL_LEVEL_FUNC(fun) \
+    if(!fun) \
+    { \
+      fprintf(stderr, "Could not load global Vulkan function: %s !\n", #fun); \
+      return false; \
+    }
+
+#include "function_list.inl"
+
+    return true;
+}
+
+bool loadVulkanEntry()
+{
+    if (handle == nullptr)
         return false;
-    }   
 
     vkGetInstanceProcAddr = GET_VK_ENTRY_POINT(handle);
-    if (vkGetInstanceProcAddr)
-    {
-        if (loadVulkanFunctions())
-            return true;
-    }
-    else
+    if (!vkGetInstanceProcAddr)
     {
         fprintf(stderr, "Could not load Vulkan entry function: vkGetInstanceProcAddr!\n");
-        FREE_VK_LIBRARY();
-        handle = nullptr;
         return false;
     }
+
+    return true;
+}
+
+bool loadVulkanLibrary()
+{
+    if (handle != nullptr)
+        return true;
+
+    handle = LOAD_VK_LIBRARY(DEFAULT_VK_LIBRARY_PATH);
+    if( handle == nullptr )
+    {
+        fprintf(stderr, "Could not load Vulkan library: %s!\n", DEFAULT_VK_LIBRARY_PATH);
+        return false;
+    }
+
+    return true;
 }
 
 }}} // namespace cv::dnn::vkcom
